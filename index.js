@@ -1,110 +1,37 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-
+const express = require("express");
 const app = express();
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+const fetch = require("node-fetch");
 
-//replace this url with any image's url that you want.
-const example_image = 'https://tse3.mm.bing.net/th/id/OIF.8sbPratvpFakKsMLxjoHoQ?cb=ucfimg2ucfimg=1&rs=1&pid=ImgDetMain&o=7&rm=3'
-// const image_2 = 'image url'
+// Replace these with your values
+const API_KEY = "AIzaSyC0XfO6bjHVjNMybt73nz9-G1Di62rDv-s";
+const CX = "64386d9c644e74622";
 
-// Endpoint to handle incoming dialogflow events 
-// You can replace req (Request) and res (Respond) with any desired names
-app.post('/dialog', async(req, res) => {
-  const intent = req.body.queryResult.intent.displayName;
-  const parameters = req.body.queryResult.parameters;
-  const location = parameters['geo-city'] || "unspecified";
-  const date = parameters['date-time']?.date_time || parameters['date-time'] || "unspecified";
+app.post("/webhook", async (req, res) => {
+    const userQuery = req.body.queryResult.queryText;
 
-  if (intent === 'book.rooms') {
-    const roomType = parameters['rooms'];
-    return res.json({
-        fulfillmentMessages: [
-          {
-            platform: "DIALOGFLOW_MESSENGER",
-            payload: {
-              richContent: [
-                [
-                  {
-                    type: "image",
-                    rawUrl: example_image,
-                    accessibilityText: "Booking confirmed"
-                  },
-                  {
-                    type: "description",
-                    title: `Booking Confirmed: ${roomType}`,
-                    text: [
-                      `Location: ${location}`,
-                      `Booked for date: ${date}`
-                    ]
-                  },
-                  {
-                    type: "button",
-                    icon: { type: "cancel" },
-                    text: "Cancel Booking",
-                    event: {
-                      name: "cancel_booking",
-                      parameters: { room_car: roomType }
-                    }
-                  }
-                ]
-              ]
-            }
-          }
-        ]
-      });
-  }
+    const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(userQuery)}&key=${API_KEY}&cx=${CX}`;
 
-  if (intent === 'book.cars') {
-    const carType = parameters['cars'];
-      return res.json({
-        fulfillmentMessages: [
-          {
-            platform: "DIALOGFLOW_MESSENGER",
-            payload: {
-              richContent: [
-                [
-                  {
-                    type: "image",
-                    rawUrl: example_image,
-                    accessibilityText: "Booking confirmed"
-                  },
-                  {
-                    type: "description",
-                    title: `Booking Confirmed: ${carType}`,
-                    text: [
-                      `Location: ${location}`,
-                      `Booked for date: ${date}`
-                    ]
-                  },
-                  {
-                    type: "button",
-                    icon: { type: "cancel" },
-                    text: "Cancel Booking",
-                    event: {
-                      name: "cancel_booking",
-                      parameters: { room_car: carType }
-                    }
-                  }
-                ]
-              ]
-            }
-          }
-        ]
-      });
-  }
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
 
-    if (intent === 'cancel_booking') {
-       const roomCar = parameters['room_car'] || "unspecified";
-      return res.json({ fulfillmentText: `✅ Booking for ${roomCar} has been cancelled.` });
-  }
+        let answer = "I couldn't find any information.";
+        if (data.items && data.items.length > 0) {
+            answer = data.items[0].snippet;
+        }
 
-  return res.json({ fulfillmentText: "Intent not handled by webhook." });
+        return res.json({
+            fulfillmentText: answer
+        });
+    } catch (error) {
+        return res.json({
+            fulfillmentText: "Error fetching data from Google."
+        });
+    }
 });
 
-app.listen(3000, () => console.log('Webhook server running on port 3000'));
-
+app.listen(3000, () => console.log("Webhook running on port 3000"));
 
 
 
